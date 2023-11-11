@@ -1,0 +1,4 @@
+BOT_TOKEN: ""
+NGROK_AUTH_TOKEN: ""
+IP_UPDATE_CHANNEL_ID: ""
+IP_UPDATE_MESSAGE: "**Updated Server IP** : %server_ip%"

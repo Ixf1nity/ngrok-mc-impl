@@ -11,6 +11,8 @@ import discord4j.core.object.entity.channel.GuildMessageChannel;
 import discord4j.core.spec.MessageCreateSpec;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.Objects;
+
 public final class NgrokCommunication extends JavaPlugin {
 
     private GatewayDiscordClient client;
@@ -20,7 +22,8 @@ public final class NgrokCommunication extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        this.client = DiscordClientBuilder.create("TOKEN")
+        this.saveDefaultConfig();
+        this.client = DiscordClientBuilder.create(Objects.requireNonNull(this.getConfig().getString("BOT_TOKEN")))
                 .build()
                 .login()
                 .block();
@@ -29,15 +32,16 @@ public final class NgrokCommunication extends JavaPlugin {
         final CreateTunnel createTunnel = new CreateTunnel.Builder()
                 .withProto(Proto.TCP)
                 .withAddr(25565)
-                .withAuth("NGROK_AUTH_TOKEN")
+                .withAuth(this.getConfig().getString("NGROK_AUTH_TOKEN"))
                 .build();
         final Tunnel tunnel = ngrokClient.connect(createTunnel);
         this.publicIp = tunnel.getPublicUrl();
 
-        client.getChannelById(Snowflake.of(1172534695813189662L))
+        client.getChannelById(Snowflake.of(Objects.requireNonNull(this.getConfig().getString("IP_UPDATE_CHANNEL_ID"))))
                 .ofType(GuildMessageChannel.class)
                 .flatMap(guildMessageChannel -> guildMessageChannel.createMessage(MessageCreateSpec.builder()
-                        .content("* Current connection address: " + publicIp.replace("tcp://", ""))
+                        .content(Objects.requireNonNull(this.getConfig().getString("IP_UPDATE_MESSAGE"))
+                                .replace("%server_ip%", publicIp.replace("tcp://", "")))
                         .build()
                 )).subscribe();
     }
