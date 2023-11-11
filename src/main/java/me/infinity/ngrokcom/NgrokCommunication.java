@@ -1,7 +1,6 @@
 package me.infinity.ngrokcom;
 
 import com.github.alexdlaird.ngrok.NgrokClient;
-import com.github.alexdlaird.ngrok.conf.JavaNgrokConfig;
 import com.github.alexdlaird.ngrok.protocol.CreateTunnel;
 import com.github.alexdlaird.ngrok.protocol.Proto;
 import com.github.alexdlaird.ngrok.protocol.Tunnel;
