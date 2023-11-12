@@ -1,4 +1,7 @@
-BOT_TOKEN: ""
-NGROK_AUTH_TOKEN: ""
-IP_UPDATE_CHANNEL_ID: ""
-IP_UPDATE_MESSAGE: "**Updated Server IP** : %server_ip%"
+BOT_TOKEN: "" # Discord bot token
+NGROK_AUTH_TOKEN: "" # NGROK authentication token
+IP_UPDATE_CHANNEL_ID: "" # The channel's id in which IP update messages should be sent by the bot.
+IP_UPDATE_MESSAGE: "**Updated Server IP** : %server_ip%" # IP update message format
+
+REGION: "US" # IN, AP, AU, EU, JP, SA, US
+#The region in which NGROK should host your tunnel. Use the closest to you for good ping.

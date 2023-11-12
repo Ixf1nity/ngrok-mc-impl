@@ -1,8 +1,10 @@
 package me.infinity.ngrokcom;
 
 import com.github.alexdlaird.ngrok.NgrokClient;
+import com.github.alexdlaird.ngrok.conf.JavaNgrokConfig;
 import com.github.alexdlaird.ngrok.protocol.CreateTunnel;
 import com.github.alexdlaird.ngrok.protocol.Proto;
+import com.github.alexdlaird.ngrok.protocol.Region;
 import com.github.alexdlaird.ngrok.protocol.Tunnel;
 import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClientBuilder;
@@ -11,6 +13,7 @@ import discord4j.core.object.entity.channel.GuildMessageChannel;
 import discord4j.core.spec.MessageCreateSpec;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 public final class NgrokCommunication extends JavaPlugin {
@@ -22,17 +25,24 @@ public final class NgrokCommunication extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        this.getConfig().addDefault("PORT", this.getServer().getPort());
+        this.getConfig().setComments("PORT", Arrays.asList("Ngrok hosting port, Do not touch if you dont know how it works!"));
         this.saveDefaultConfig();
         this.client = DiscordClientBuilder.create(Objects.requireNonNull(this.getConfig().getString("BOT_TOKEN")))
                 .build()
                 .login()
                 .block();
 
-        this.ngrokClient = new NgrokClient.Builder().build();
+        final JavaNgrokConfig javaNgrokConfig = new JavaNgrokConfig.Builder()
+                .withAuthToken(this.getConfig().getString("NGROK_AUTH_TOKEN"))
+                .withRegion(Region.valueOf(Objects.requireNonNull(this.getConfig().getString("REGION")).toUpperCase()))
+                .build();
+        this.ngrokClient = new NgrokClient.Builder()
+                .withJavaNgrokConfig(javaNgrokConfig)
+                .build();
         final CreateTunnel createTunnel = new CreateTunnel.Builder()
                 .withProto(Proto.TCP)
-                .withAddr(25565)
-                .withAuth(this.getConfig().getString("NGROK_AUTH_TOKEN"))
+                .withAddr(this.getConfig().getInt("PORT"))
                 .build();
         final Tunnel tunnel = ngrokClient.connect(createTunnel);
         this.publicIp = tunnel.getPublicUrl();
