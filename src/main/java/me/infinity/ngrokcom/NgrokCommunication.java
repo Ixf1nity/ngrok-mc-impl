@@ -13,7 +13,6 @@ import discord4j.core.object.entity.channel.GuildMessageChannel;
 import discord4j.core.spec.MessageCreateSpec;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.Arrays;
 import java.util.Objects;
 
 public final class NgrokCommunication extends JavaPlugin {
@@ -25,8 +24,6 @@ public final class NgrokCommunication extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        this.getConfig().addDefault("PORT", this.getServer().getPort());
-        this.getConfig().setComments("PORT", Arrays.asList("Ngrok hosting port, Do not touch if you dont know how it works!"));
         this.saveDefaultConfig();
         this.client = DiscordClientBuilder.create(Objects.requireNonNull(this.getConfig().getString("BOT_TOKEN")))
                 .build()
@@ -42,18 +39,20 @@ public final class NgrokCommunication extends JavaPlugin {
                 .build();
         final CreateTunnel createTunnel = new CreateTunnel.Builder()
                 .withProto(Proto.TCP)
-                .withAddr(this.getConfig().getInt("PORT"))
+                .withAddr(this.getServer().getPort())
                 .build();
         final Tunnel tunnel = ngrokClient.connect(createTunnel);
-        this.publicIp = tunnel.getPublicUrl();
+        this.publicIp = tunnel.getPublicUrl().replace("tcp://", "");
 
         client.getChannelById(Snowflake.of(Objects.requireNonNull(this.getConfig().getString("IP_UPDATE_CHANNEL_ID"))))
                 .ofType(GuildMessageChannel.class)
                 .flatMap(guildMessageChannel -> guildMessageChannel.createMessage(MessageCreateSpec.builder()
                         .content(Objects.requireNonNull(this.getConfig().getString("IP_UPDATE_MESSAGE"))
-                                .replace("%server_ip%", publicIp.replace("tcp://", "")))
+                                .replace("%server_ip%", publicIp))
                         .build()
                 )).subscribe();
+
+        this.getLogger().info("Listening server on port " + this.getServer().getPort() + ", IP: " + publicIp);
     }
 
     @Override
