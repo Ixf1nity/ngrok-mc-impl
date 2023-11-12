@@ -60,7 +60,9 @@ public final class NgrokCommunication extends JavaPlugin {
     try {
         this.ngrokClient.disconnect(publicIp);
         this.ngrokClient.kill();
-        this.ngrokClient.stop(); // Attempt to stop the ngrok client explicitly
+        // Close any resources related to the NgrokClient, if available
+        // For instance, if there are sockets or connections, close them explicitly
+        // this.ngrokClient.closeResources();
     } catch (Exception e) {
         e.printStackTrace();
     }
