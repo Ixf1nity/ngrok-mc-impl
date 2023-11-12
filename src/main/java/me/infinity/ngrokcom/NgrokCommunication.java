@@ -55,10 +55,18 @@ public final class NgrokCommunication extends JavaPlugin {
         this.getLogger().info("Listening server on port " + this.getServer().getPort() + ", IP: " + publicIp);
     }
 
-    @Override
-    public void onDisable() {
+@Override
+public void onDisable() {
+    try {
         this.ngrokClient.disconnect(publicIp);
         this.ngrokClient.kill();
-        this.client.logout();
+        this.ngrokClient.close(); // Close the ngrok client explicitly
+    } catch (Exception e) {
+        e.printStackTrace();
     }
+
+    if (this.client != null) {
+        this.client.logout().block();
+    }
+}
 }
