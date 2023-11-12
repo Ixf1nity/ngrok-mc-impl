@@ -14,6 +14,8 @@ import discord4j.core.object.entity.channel.GuildMessageChannel;
 import discord4j.core.spec.MessageCreateSpec;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.Objects;
 
 public final class NgrokCommunication extends JavaPlugin {
@@ -27,7 +29,13 @@ public final class NgrokCommunication extends JavaPlugin {
         this.saveDefaultConfig();
         int ngrokPort = this.getConfig().getInt("NGROK_PORT", 25565); // Default to Minecraft port if not specified
 
-        this.client = DiscordClientBuilder.create(Objects.requireNonNull(this.getConfig().getString("BOT_TOKEN")))
+        String botToken = this.getConfig().getString("BOT_TOKEN");
+        if (botToken == null || botToken.isEmpty()) {
+            this.getLogger().warning("Bot token is missing in the config. Discord functionality disabled.");
+            return;
+        }
+
+        this.client = DiscordClientBuilder.create(botToken)
                 .build()
                 .login()
                 .block();
@@ -49,13 +57,19 @@ public final class NgrokCommunication extends JavaPlugin {
         final Tunnel tunnel = ngrokClient.connect(createTunnel);
         this.publicIp = tunnel.getPublicUrl().replace("tcp://", "");
 
-        client.getChannelById(Snowflake.of(Objects.requireNonNull(this.getConfig().getString("IP_UPDATE_CHANNEL_ID"))))
-                .ofType(GuildMessageChannel.class)
-                .flatMap(guildMessageChannel -> guildMessageChannel.createMessage(MessageCreateSpec.builder()
-                        .content(Objects.requireNonNull(this.getConfig().getString("IP_UPDATE_MESSAGE"))
-                                .replace("%server_ip%", publicIp))
-                        .build()
-                )).subscribe();
+        if (this.getConfig().getBoolean("SEND_UPDATE_MESSAGE")) {
+            String updateMessage = this.getConfig().getString("IP_UPDATE_MESSAGE");
+            if (updateMessage != null && !updateMessage.isEmpty()) {
+                client.getChannelById(Snowflake.of(Objects.requireNonNull(this.getConfig().getString("IP_UPDATE_CHANNEL_ID"))))
+                        .ofType(GuildMessageChannel.class)
+                        .flatMap(guildMessageChannel -> guildMessageChannel.createMessage(MessageCreateSpec.builder()
+                                .content(updateMessage.replace("%server_ip%", publicIp))
+                                .build()
+                        )).subscribe();
+            } else {
+                this.getLogger().warning("IP update message is missing in the config. Update message not sent.");
+            }
+        }
 
         this.getLogger().info("Listening server on port " + ngrokPort + ", IP: " + publicIp);
     }
@@ -66,10 +80,9 @@ public final class NgrokCommunication extends JavaPlugin {
             if (ngrokClient != null && publicIp != null) {
                 this.ngrokClient.disconnect(publicIp);
                 this.ngrokClient.kill();
-                // this.ngrokClient.closeResources(); // Close any resources
             }
         } catch (Exception ignored) {
-            // Suppress the exception
+            // Suppress any exceptions during shutdown
         }
 
         try {
@@ -77,7 +90,19 @@ public final class NgrokCommunication extends JavaPlugin {
                 this.client.logout().block();
             }
         } catch (Exception ignored) {
-            // Suppress the exception
+            // Suppress any exceptions during shutdown
         }
+        
+        // Redirect standard output and error streams
+        System.setOut(new PrintStream(new OutputStream() {
+            public void write(int b) {
+                // Disable output for standard out stream
+            }
+        }));
+        System.setErr(new PrintStream(new OutputStream() {
+            public void write(int b) {
+                // Disable output for error stream
+            }
+        }));
     }
 }
