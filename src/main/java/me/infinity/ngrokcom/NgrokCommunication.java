@@ -63,15 +63,21 @@ public final class NgrokCommunication extends JavaPlugin {
     @Override
     public void onDisable() {
         try {
-            this.ngrokClient.disconnect(publicIp);
-            this.ngrokClient.kill();
-            // this.ngrokClient.closeResources(); // Close any resources
-        } catch (Exception e) {
-            e.printStackTrace();
+            if (ngrokClient != null && publicIp != null) {
+                this.ngrokClient.disconnect(publicIp);
+                this.ngrokClient.kill();
+                // this.ngrokClient.closeResources(); // Close any resources
+            }
+        } catch (Exception ignored) {
+            // Suppress the exception
         }
 
-        if (this.client != null) {
-            this.client.logout().block();
+        try {
+            if (this.client != null) {
+                this.client.logout().block();
+            }
+        } catch (Exception ignored) {
+            // Suppress the exception
         }
     }
 }
