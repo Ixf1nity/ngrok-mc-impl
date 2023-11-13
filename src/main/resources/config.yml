@@ -1,9 +1,12 @@
-SEND_UPDATE_MESSAGE: false # Set to true to enable sending update messages, false to disable
-
-BOT_TOKEN: "" # Discord bot token
+# NGROK Configuration
 NGROK_AUTH_TOKEN: "" # NGROK authentication token
-IP_UPDATE_CHANNEL_ID: "" # The channel's id in which IP update messages should be sent by the bot.
-IP_UPDATE_MESSAGE: "**Updated Server IP** : %server_ip%" # IP update message format
+NGROK_PORT: 25565
 
 REGION: "US" # IN, AP, AU, EU, JP, SA, US
 #The region in which NGROK should host your tunnel. Use the closest to you for good ping.
+
+# Discord Configuration
+SEND_UPDATE_MESSAGE: false
+BOT_TOKEN: "" # Discord bot token
+IP_UPDATE_CHANNEL_ID: "" # The channel's id in which IP update messages should be sent by the bot.
+IP_UPDATE_MESSAGE: "**Updated Server IP** : %server_ip%" # IP update message format
