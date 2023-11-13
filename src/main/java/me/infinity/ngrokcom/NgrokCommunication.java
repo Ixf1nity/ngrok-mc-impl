@@ -14,8 +14,6 @@ import discord4j.core.object.entity.channel.GuildMessageChannel;
 import discord4j.core.spec.MessageCreateSpec;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.Objects;
 
 public final class NgrokCommunication extends JavaPlugin {
@@ -76,10 +74,12 @@ public final class NgrokCommunication extends JavaPlugin {
 
     @Override
     public void onDisable() {
+    	saveConfigSilently();
         try {
             if (ngrokClient != null && publicIp != null) {
                 this.ngrokClient.disconnect(publicIp);
                 this.ngrokClient.kill();
+                saveConfigSilently();
             }
         } catch (Exception ignored) {
             // Suppress any exceptions during shutdown
@@ -88,21 +88,28 @@ public final class NgrokCommunication extends JavaPlugin {
         try {
             if (this.client != null) {
                 this.client.logout().block();
+                saveConfigSilently();
             }
         } catch (Exception ignored) {
             // Suppress any exceptions during shutdown
         }
-        
-        // Redirect standard output and error streams
-        System.setOut(new PrintStream(new OutputStream() {
-            public void write(int b) {
-                // Disable output for standard out stream
-            }
-        }));
-        System.setErr(new PrintStream(new OutputStream() {
-            public void write(int b) {
-                // Disable output for error stream
-            }
-        }));
+    }
+    // Method to save the configuration without generating warnings
+    private void saveConfigSilently() {
+        try {
+            // Temporarily store the original system output and error streams
+            // to suppress warnings during configuration save
+            System.setOut(null);
+            System.setErr(null);
+
+            // Save the default configuration
+            saveDefaultConfig();
+
+            // Restore the original output and error streams
+            System.setOut(System.out);
+            System.setErr(System.err);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
