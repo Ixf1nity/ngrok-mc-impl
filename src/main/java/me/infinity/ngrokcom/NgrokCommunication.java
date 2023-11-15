@@ -2,6 +2,8 @@ package me.infinity.ngrokcom;
 
 import com.github.alexdlaird.ngrok.NgrokClient;
 import com.github.alexdlaird.ngrok.conf.JavaNgrokConfig;
+import com.github.alexdlaird.ngrok.installer.NgrokInstaller;
+import com.github.alexdlaird.ngrok.installer.NgrokVersion;
 import com.github.alexdlaird.ngrok.protocol.CreateTunnel;
 import com.github.alexdlaird.ngrok.protocol.Proto;
 import com.github.alexdlaird.ngrok.protocol.Region;
@@ -15,6 +17,8 @@ import discord4j.core.spec.MessageCreateSpec;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class NgrokCommunication extends JavaPlugin {
 
@@ -27,6 +31,9 @@ public final class NgrokCommunication extends JavaPlugin {
 
     @Override
     public void onEnable() {
+
+        Logger.getLogger(String.valueOf(com.github.alexdlaird.ngrok.process.NgrokProcess.class)).setLevel(Level.OFF);
+
         this.saveDefaultConfig();
         int ngrokPort = this.getServer().getPort();
         this.discordModule = this.getConfig().getBoolean("DISCORD_UPDATES.ENABLED");
@@ -45,16 +52,19 @@ public final class NgrokCommunication extends JavaPlugin {
                 .block();
 
             if (this.client != null) this.discordModuleStatus = true;
-
         }
+
         final JavaNgrokConfig javaNgrokConfig = new JavaNgrokConfig.Builder()
-                .withAuthToken(this.getConfig().getString("NGROK_SETTINGS.AUTH_TOKEN"))
+                .withNgrokVersion(NgrokVersion.V3)
                 .withRegion(Region.valueOf(Objects.requireNonNull(this.getConfig().getString("NGROK_SETTINGS.REGION")).toUpperCase()))
                 .build();
 
         this.ngrokClient = new NgrokClient.Builder()
+                .withNgrokInstaller(new NgrokInstaller())
                 .withJavaNgrokConfig(javaNgrokConfig)
                 .build();
+
+        this.ngrokClient.getNgrokProcess().setAuthToken(this.getConfig().getString("NGROK_SETTINGS.AUTH_TOKEN"));
 
         final CreateTunnel createTunnel = new CreateTunnel.Builder()
                 .withProto(Proto.TCP)
@@ -83,44 +93,16 @@ public final class NgrokCommunication extends JavaPlugin {
 
     @Override
     public void onDisable() {
-    	saveConfigSilently();
         try {
             if (ngrokClient != null && publicIp != null) {
                 this.ngrokClient.disconnect(publicIp);
                 this.ngrokClient.kill();
-                saveConfigSilently();
             }
-        } catch (Exception ignored) {
-            // Suppress any exceptions during shutdown
-        }
-
-        try {
             if (discordModuleStatus) {
                 if (this.client != null) {
                     this.client.logout().block();
-                    saveConfigSilently();
                 }
             }
-        } catch (Exception ignored) {
-            // Suppress any exceptions during shutdown
-        }
-    }
-    // Method to save the configuration without generating warnings
-    private void saveConfigSilently() {
-        try {
-            // Temporarily store the original system output and error streams
-            // to suppress warnings during configuration save
-            System.setOut(null);
-            System.setErr(null);
-
-            // Save the default configuration
-            saveDefaultConfig();
-
-            // Restore the original output and error streams
-            System.setOut(System.out);
-            System.setErr(System.err);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        } catch (Exception ignored) {}
     }
 }

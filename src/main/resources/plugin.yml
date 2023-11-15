@@ -3,3 +3,5 @@ version: '${project.version}'
 main: me.infinity.ngrokcom.NgrokCommunication
 api-version: 1.20
 load: STARTUP
+libraries:
+  - com.discord4j:discord4j-core:3.2.6
