@@ -22,25 +22,34 @@ public final class NgrokCommunication extends JavaPlugin {
     private NgrokClient ngrokClient;
     private String publicIp;
 
+    private boolean discordModule;
+    private boolean discordModuleStatus = false;
+
     @Override
     public void onEnable() {
         this.saveDefaultConfig();
         int ngrokPort = this.getServer().getPort();
+        this.discordModule = this.getConfig().getBoolean("DISCORD_UPDATES.ENABLED");
 
-        String botToken = this.getConfig().getString("BOT_TOKEN");
-        if (botToken == null || botToken.isEmpty()) {
-            this.getLogger().warning("Bot token is missing in the config. Discord functionality disabled.");
-            return;
-        }
+        if (discordModule) {
+            String botToken = this.getConfig().getString("DISCORD_UPDATES.BOT_TOKEN");
+            if (botToken == null || botToken.isEmpty()) {
+                this.getLogger().warning("Bot token is missing in the config. Shutting down...");
+                this.setEnabled(false);
+                return;
+            }
 
-        this.client = DiscordClientBuilder.create(botToken)
+            this.client = DiscordClientBuilder.create(botToken)
                 .build()
                 .login()
                 .block();
 
+            if (this.client != null) this.discordModuleStatus = true;
+
+        }
         final JavaNgrokConfig javaNgrokConfig = new JavaNgrokConfig.Builder()
-                .withAuthToken(this.getConfig().getString("AUTH_TOKEN"))
-                .withRegion(Region.valueOf(Objects.requireNonNull(this.getConfig().getString("REGION")).toUpperCase()))
+                .withAuthToken(this.getConfig().getString("NGROK_SETTINGS.AUTH_TOKEN"))
+                .withRegion(Region.valueOf(Objects.requireNonNull(this.getConfig().getString("NGROK_SETTINGS.REGION")).toUpperCase()))
                 .build();
 
         this.ngrokClient = new NgrokClient.Builder()
@@ -55,10 +64,10 @@ public final class NgrokCommunication extends JavaPlugin {
         final Tunnel tunnel = ngrokClient.connect(createTunnel);
         this.publicIp = tunnel.getPublicUrl().replace("tcp://", "");
 
-        if (this.getConfig().getBoolean("ENABLED")) {
-            String updateMessage = this.getConfig().getString("UPDATE_MESSAGE");
+        if (discordModuleStatus) {
+            String updateMessage = this.getConfig().getString("DISCORD_UPDATES.UPDATE_MESSAGE");
             if (updateMessage != null && !updateMessage.isEmpty()) {
-                client.getChannelById(Snowflake.of(Objects.requireNonNull(this.getConfig().getString("UPDATE_CHANNEL_ID"))))
+                client.getChannelById(Snowflake.of(Objects.requireNonNull(this.getConfig().getString("DISCORD_UPDATES.UPDATE_CHANNEL_ID"))))
                         .ofType(GuildMessageChannel.class)
                         .flatMap(guildMessageChannel -> guildMessageChannel.createMessage(MessageCreateSpec.builder()
                                 .content(updateMessage.replace("%server_ip%", publicIp))
@@ -86,9 +95,11 @@ public final class NgrokCommunication extends JavaPlugin {
         }
 
         try {
-            if (this.client != null) {
-                this.client.logout().block();
-                saveConfigSilently();
+            if (discordModuleStatus) {
+                if (this.client != null) {
+                    this.client.logout().block();
+                    saveConfigSilently();
+                }
             }
         } catch (Exception ignored) {
             // Suppress any exceptions during shutdown
