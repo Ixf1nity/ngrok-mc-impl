@@ -39,7 +39,7 @@ public final class NgrokCommunication extends JavaPlugin {
                 .block();
 
         final JavaNgrokConfig javaNgrokConfig = new JavaNgrokConfig.Builder()
-                .withAuthToken(this.getConfig().getString("NGROK_AUTH_TOKEN"))
+                .withAuthToken(this.getConfig().getString("AUTH_TOKEN"))
                 .withRegion(Region.valueOf(Objects.requireNonNull(this.getConfig().getString("REGION")).toUpperCase()))
                 .build();
 
@@ -55,10 +55,10 @@ public final class NgrokCommunication extends JavaPlugin {
         final Tunnel tunnel = ngrokClient.connect(createTunnel);
         this.publicIp = tunnel.getPublicUrl().replace("tcp://", "");
 
-        if (this.getConfig().getBoolean("SEND_UPDATE_MESSAGE")) {
-            String updateMessage = this.getConfig().getString("IP_UPDATE_MESSAGE");
+        if (this.getConfig().getBoolean("ENABLED")) {
+            String updateMessage = this.getConfig().getString("UPDATE_MESSAGE");
             if (updateMessage != null && !updateMessage.isEmpty()) {
-                client.getChannelById(Snowflake.of(Objects.requireNonNull(this.getConfig().getString("IP_UPDATE_CHANNEL_ID"))))
+                client.getChannelById(Snowflake.of(Objects.requireNonNull(this.getConfig().getString("UPDATE_CHANNEL_ID"))))
                         .ofType(GuildMessageChannel.class)
                         .flatMap(guildMessageChannel -> guildMessageChannel.createMessage(MessageCreateSpec.builder()
                                 .content(updateMessage.replace("%server_ip%", publicIp))
