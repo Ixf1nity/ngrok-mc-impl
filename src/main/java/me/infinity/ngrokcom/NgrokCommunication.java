@@ -25,7 +25,7 @@ public final class NgrokCommunication extends JavaPlugin {
     @Override
     public void onEnable() {
         this.saveDefaultConfig();
-        int ngrokPort = this.getConfig().getInt("NGROK_PORT", 25565); // Default to Minecraft port if not specified
+        int ngrokPort = this.getServer().getPort()
 
         String botToken = this.getConfig().getString("BOT_TOKEN");
         if (botToken == null || botToken.isEmpty()) {
