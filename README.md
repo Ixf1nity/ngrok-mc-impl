@@ -12,3 +12,5 @@ a efficient way of implementing NGROK into your minecraft server.
 8. Restart the server.
 9. The public IP will be logged in the console.
 10. Enjoy!
+
+![image](https://github.com/Ixf1nity/ngrok-mc-impl/assets/97213130/1c7b23c4-12b0-4bcd-ab91-5bf94141dfae)
