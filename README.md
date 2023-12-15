@@ -14,3 +14,5 @@ a efficient way of implementing NGROK into your minecraft server.
 10. Enjoy!
 
 ![image](https://github.com/Ixf1nity/ngrok-mc-impl/assets/97213130/1c7b23c4-12b0-4bcd-ab91-5bf94141dfae)
+![image](https://github.com/Ixf1nity/ngrok-mc-impl/assets/97213130/ab1440d9-c348-4617-a554-9e062795c10f)
+
