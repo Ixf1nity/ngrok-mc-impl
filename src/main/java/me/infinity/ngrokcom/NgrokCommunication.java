@@ -8,21 +8,30 @@ import com.github.alexdlaird.ngrok.protocol.CreateTunnel;
 import com.github.alexdlaird.ngrok.protocol.Proto;
 import com.github.alexdlaird.ngrok.protocol.Region;
 import com.github.alexdlaird.ngrok.protocol.Tunnel;
-
-import discord4j.common.util.Snowflake;
-import discord4j.core.DiscordClientBuilder;
-import discord4j.core.GatewayDiscordClient;
-import discord4j.core.object.entity.channel.GuildMessageChannel;
-import discord4j.core.spec.MessageCreateSpec;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.OnlineStatus;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.events.GenericEvent;
+import net.dv8tion.jda.api.events.session.ReadyEvent;
+import net.dv8tion.jda.api.hooks.EventListener;
+import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
+import net.dv8tion.jda.api.utils.messages.MessageEditData;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public final class NgrokCommunication extends JavaPlugin {
+public final class NgrokCommunication extends JavaPlugin implements EventListener {
 
-    private GatewayDiscordClient client;
+    private JDA client;
     private NgrokClient ngrokClient;
     private String publicIp;
 
@@ -46,12 +55,18 @@ public final class NgrokCommunication extends JavaPlugin {
                 return;
             }
 
-            this.client = DiscordClientBuilder.create(botToken)
-                .build()
-                .login()
-                .block();
+            this.client = JDABuilder.createDefault(botToken)
+                    .setStatus(OnlineStatus.DO_NOT_DISTURB)
+                    .enableIntents(Arrays.asList(GatewayIntent.DIRECT_MESSAGES, GatewayIntent.MESSAGE_CONTENT, GatewayIntent.GUILD_MESSAGES))
+                    .build();
 
-            if (this.client != null) this.discordModuleStatus = true;
+            this.client.addEventListener(this);
+
+            try {
+                this.client.awaitReady();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         final JavaNgrokConfig javaNgrokConfig = new JavaNgrokConfig.Builder()
@@ -77,16 +92,27 @@ public final class NgrokCommunication extends JavaPlugin {
         if (discordModuleStatus) {
             String updateMessage = this.getConfig().getString("DISCORD_UPDATES.UPDATE_MESSAGE");
             if (updateMessage != null && !updateMessage.isEmpty()) {
-                client.getChannelById(Snowflake.of(Objects.requireNonNull(this.getConfig().getString("DISCORD_UPDATES.UPDATE_CHANNEL_ID"))))
-                        .ofType(GuildMessageChannel.class)
-                        .flatMap(guildMessageChannel -> guildMessageChannel.createMessage(MessageCreateSpec.builder()
-                                .content(updateMessage.replace("%server_ip%", publicIp))
-                                .build()
-                        )).subscribe();
+                TextChannel messageChannel = client.getTextChannelById(Objects.requireNonNull(this.getConfig().getString("DISCORD_UPDATES.UPDATE_CHANNEL_ID")));
+                if (messageChannel != null) {
+                    long updateMessageId = this.getConfig().getLong("DISCORD_UPDATES.UPDATE_MESSAGE_ID");
+                    if (updateMessageId == 0) {
+                        CompletableFuture<Message> message = messageChannel.sendMessage(MessageCreateData.fromContent(updateMessage.replace("%server_ip%", publicIp))).submit();
+                        try {
+                            this.getConfig().set("DISCORD_UPDATES.UPDATE_MESSAGE_ID", message.get().getIdLong());
+                        } catch (InterruptedException | ExecutionException e) {
+                            throw new RuntimeException(e);
+                        }
+                    } else {
+                        messageChannel.editMessageById(updateMessageId, MessageEditData.fromContent(updateMessage.replace("%server_ip%", publicIp))).queue();
+                    }
+                } else {
+                    this.getLogger().warning("IP update channel is null. Update message not sent.");
+                }
             } else {
                 this.getLogger().warning("IP update message is missing in the config. Update message not sent.");
             }
         }
+
 
         this.getLogger().info("Listening server on port " + ngrokPort + ", IP: " + publicIp);
     }
@@ -99,10 +125,17 @@ public final class NgrokCommunication extends JavaPlugin {
                 this.ngrokClient.kill();
             }
             if (discordModuleStatus) {
-                if (this.client != null) {
-                    this.client.logout().block();
-                }
+                this.client.shutdown();
             }
-        } catch (Exception ignored) {}
+            this.saveConfig();
+        } catch (Exception ignored) {
+        }
+    }
+
+    @Override
+    public void onEvent(@NotNull GenericEvent genericEvent) {
+        if (genericEvent instanceof ReadyEvent) {
+            this.discordModuleStatus = true;
+        }
     }
 }
