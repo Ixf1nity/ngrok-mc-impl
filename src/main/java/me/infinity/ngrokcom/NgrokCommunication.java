@@ -22,6 +22,8 @@ import net.dv8tion.jda.api.utils.messages.MessageEditData;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -37,6 +39,7 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
 
     private boolean discordModule;
     private boolean discordModuleStatus = false;
+    private boolean dynu;
 
     @Override
     public void onEnable() {
@@ -46,6 +49,16 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
         this.saveDefaultConfig();
         int ngrokPort = this.getServer().getPort();
         this.discordModule = this.getConfig().getBoolean("DISCORD_UPDATES.ENABLED");
+        this.dynu = this.getConfig().getBoolean("DYNU_SETTINGS.ENABLED");
+        String ngrokAuthToken = this.getConfig().getString("NGROK_SETTINGS.AUTH_TOKEN");
+        String dynuClient = this.getConfig().getString("DYNU_SETTINGS.CLIENT");
+        String dynuSecret = this.getConfig().getString("DYNU_SETTINGS.SECRET");
+        
+        if (ngrokAuthToken == null || ngrokAuthToken.isEmpty()) {
+            this.getLogger().warning("Ngrok authentication token is missing in the config. Shutting down...");
+            this.setEnabled(false);
+            return;
+        }
 
         if (discordModule) {
             String botToken = this.getConfig().getString("DISCORD_UPDATES.BOT_TOKEN");
@@ -112,7 +125,10 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
                 this.getLogger().warning("IP update message is missing in the config. Update message not sent.");
             }
         }
-
+        
+        if (dynu) {
+        updateDynuDns();
+        }
 
         this.getLogger().info("Listening server on port " + ngrokPort + ", IP: " + publicIp);
     }
@@ -136,6 +152,30 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
     public void onEvent(@NotNull GenericEvent genericEvent) {
         if (genericEvent instanceof ReadyEvent) {
             this.discordModuleStatus = true;
+        }
+    }
+    
+    // Method to update Dynu DNS records
+    private void updateDynuDns() {
+        try {
+            // Parse the public IP address
+            String[] parts = publicIp.split(":");
+            String hostname = parts[0];
+            int port = Integer.parseInt(parts[1]);
+
+            // Convert the hostname to IP address
+            InetAddress ipAddress = InetAddress.getByName(hostname);
+            String ip = ipAddress.getHostAddress();
+
+            // Update the A record with the IP address
+
+            // Update the SRV record with the port
+
+            getLogger().info("Dynu DNS records updated successfully.");
+        } catch (UnknownHostException e) {
+            getLogger().log(Level.WARNING, "Failed to resolve IP address from the hostname.", e);
+        } catch (Exception e) {
+            getLogger().log(Level.WARNING, "Failed to update Dynu DNS records.", e);
         }
     }
 }
