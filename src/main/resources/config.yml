@@ -3,6 +3,7 @@ NGROK_SETTINGS:
   AUTH_TOKEN: ""
   REGION: "US" # IN, AP, AU, EU, JP, SA, US
   #The region in which NGROK should host your tunnel. Use the closest to you for good ping.
+  PORT: 0 # set to 0 to use the default port of the server.
 
 # Discord IP update messages configuration.
 DISCORD_UPDATES:
@@ -16,5 +17,5 @@ DISCORD_UPDATES:
 # Dynu configuration & credentials
 DYNU_SETTINGS:
   ENABLED: false
-  CLIENT: ""
-  SECRET: ""
+  HOSTNAME: ""
+  PASSWORD: ""
