@@ -8,6 +8,7 @@ import com.github.alexdlaird.ngrok.protocol.CreateTunnel;
 import com.github.alexdlaird.ngrok.protocol.Proto;
 import com.github.alexdlaird.ngrok.protocol.Region;
 import com.github.alexdlaird.ngrok.protocol.Tunnel;
+
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
@@ -21,7 +22,9 @@ import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.api.utils.messages.MessageEditData;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
-
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Objects;
@@ -31,6 +34,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 
 public final class NgrokCommunication extends JavaPlugin implements EventListener {
 
@@ -38,11 +42,17 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
     private NgrokClient ngrokClient;
     private String publicIp;
     
-
     private boolean discordModule;
     private boolean discordModuleStatus = false;
     private boolean dynu;
     private int ngrokPort = 25565; // Default Minecraft server port
+    
+    private String dynuClientId;
+    private String dynuSecret;
+    private String dynuToken;
+    private String domain;
+    private String domainId;
+    private String dnsesPort;
 
     @Override
     public void onEnable() {
@@ -134,7 +144,13 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
         }
         
         if (dynu) {
-        update(publicIp);
+            this.dynuClientId = this.getConfig().getString("DYNU_SETTINGS.CLIENT_ID");
+            this.dynuSecret = this.getConfig().getString("DYNU_SETTINGS.SECRET");
+            this.domain = this.getConfig().getString("DYNU_SETTINGS.DOMAIN");
+            
+            this.getLogger().info("Dynu settings: " + dynuClientId + " " + dynuSecret + " " + domain);
+            
+            update(publicIp);
         }
 
         this.getLogger().info("Listening server on port " + ngrokPort + ", IP: " + publicIp);
@@ -142,6 +158,7 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
 
     @Override
     public void onDisable() {
+    	System.setErr(null);
         try {
             if (ngrokClient != null && publicIp != null) {
                 this.ngrokClient.disconnect(publicIp);
@@ -163,24 +180,130 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
     }
     
 	public boolean update(String publicIp) {
-    	String hostname = this.getConfig().getString("DYNU_SETTINGS.HOSTNAME");
+    	String hostname = domain;
     	String password = this.getConfig().getString("DYNU_SETTINGS.PASSWORD");
         try {
             // Parse the public IP address
             String[] parts = publicIp.split(":");
             String host = parts[0];
+            int port = Integer.parseInt(parts[1]);
 
             // Convert the hostname to IP address
             InetAddress ipAddress = InetAddress.getByName(host);
             String ip = ipAddress.getHostAddress();
             
+            this.getLogger().info("This is ipv4: " + ip);
+            
             URL url = new URL("https://api.dynu.com/nic/update?hostname=" + hostname + "&myip=" + ip + "&password=" + password);
             URLConnection conn = url.openConnection();
             conn.connect();
+            
+            // Combine Client ID and Secret
+            String dynuFull = dynuClientId + ":" + dynuSecret;
+
+            // Retrieve Dynu Token
+            dynuToken = getToken(dynuFull);
+
+            // Get Domain Name + ID
+            getDomainInfo();
+
+            // Get DNS Records of Domain ID
+            getDNSRecords();
+            
+            // Update DNS Record
+            updateDNS(port);
 
         } catch (Exception e) {
             this.getLogger().severe(e.getMessage());
         }
         return false;
+    }
+	
+    private String getToken(String dynuFull) {
+        try {
+        	this.getLogger().info("Getting token...");
+            URL url = new URL("https://api.dynu.com/v2/oauth2/token");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Authorization", "Basic " + java.util.Base64.getEncoder().encodeToString(dynuFull.getBytes(StandardCharsets.UTF_8)));
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            String response = reader.readLine();
+            reader.close();
+
+            return response.split("\"")[3];
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private void getDomainInfo() {
+        try {
+        	this.getLogger().info("Getting Domain Info...");
+            URL url = new URL("https://api.dynu.com/v2/dns");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + dynuToken);
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            String response = reader.readLine();
+            reader.close();
+
+            String[] parts = response.split("\"");
+            domainId = parts[6].replace(":", "").replace(",", ""); // Removing ":" and ","
+            domain = parts[9];
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void getDNSRecords() {
+        try {
+        	this.getLogger().info("Getting DNS Records... " + dynuToken + " " + domainId);
+            URL url = new URL("https://api.dynu.com/v2/dns/" + domainId + "/record");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + dynuToken);
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            String response = reader.readLine();
+            reader.close();
+            
+            this.getLogger().warning("This is response: " + response);
+
+            String[] records = response.split("\"");
+            for (int i = 0; i < records.length; i++) {
+                if (records[i].equals("recordType") && records[i + 2].equals("SRV")) {
+                    dnsesPort = records[i - 15].replaceAll("[^0-9]", "");
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateDNS(int port) {
+        try {
+        	this.getLogger().info("Updating DNS... " + dnsesPort);
+            URL url = new URL("https://api.dynu.com/v2/dns/" + domainId + "/record/" + dnsesPort);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + dynuToken);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+
+            String data = "{\"nodeName\":\"_minecraft._tcp\",\"recordType\":\"SRV\",\"ttl\":120,\"state\":true,\"group\":\"\",\"host\":\"" + domain + "\",\"priority\":10,\"weight\":5,\"port\":" + port + "}";
+            conn.getOutputStream().write(data.getBytes());
+
+            conn.getInputStream();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
