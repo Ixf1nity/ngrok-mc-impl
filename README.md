@@ -1,5 +1,5 @@
 # ngrok-mc-impl
-a efficient way of implementing NGROK into your minecraft server.
+an efficient way of implementing NGROK into your minecraft server.
 
 ## Installation
 1. Download the plugin jar from the latest Github Release.
