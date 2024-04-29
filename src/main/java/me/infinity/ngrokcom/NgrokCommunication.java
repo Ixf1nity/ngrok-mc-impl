@@ -41,19 +41,18 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
     private JDA client;
     private NgrokClient ngrokClient;
     private String publicIp;
-    
-    private boolean discordModule;
-    private boolean discordModuleStatus = false;
-    private boolean dynu;
-    private int ngrokPort = 25565; // Default Minecraft server port
-    
     private String dynuClientId;
     private String dynuSecret;
     private String dynuToken;
     private String domain;
     private String domainId;
     private String dnsesPort;
-
+    
+    private boolean discordModule;
+    private boolean discordModuleStatus = false;
+    private boolean dynu;
+    private int ngrokPort = 25565; // Default Minecraft server port
+    
     @Override
     public void onEnable() {
 
@@ -192,8 +191,6 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
             InetAddress ipAddress = InetAddress.getByName(host);
             String ip = ipAddress.getHostAddress();
             
-            this.getLogger().info("This is ipv4: " + ip);
-            
             URL url = new URL("https://api.dynu.com/nic/update?hostname=" + hostname + "&myip=" + ip + "&password=" + password);
             URLConnection conn = url.openConnection();
             conn.connect();
@@ -272,8 +269,6 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
             BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             String response = reader.readLine();
             reader.close();
-            
-            this.getLogger().warning("This is response: " + response);
 
             String[] records = response.split("\"");
             for (int i = 0; i < records.length; i++) {
