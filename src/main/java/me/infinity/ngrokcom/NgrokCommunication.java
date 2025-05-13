@@ -150,6 +150,7 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
             this.getLogger().info("Dynu settings: " + dynuClientId + " " + dynuSecret + " " + domain);
             
             update(publicIp);
+            
         }
 
         this.getLogger().info("Listening server on port " + ngrokPort + ", IP: " + publicIp);
@@ -180,7 +181,6 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
     
 	public boolean update(String publicIp) {
     	String hostname = domain;
-    	String password = this.getConfig().getString("DYNU_SETTINGS.PASSWORD");
         try {
             // Parse the public IP address
             String[] parts = publicIp.split(":");
@@ -191,25 +191,20 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
             InetAddress ipAddress = InetAddress.getByName(host);
             String ip = ipAddress.getHostAddress();
             
-            URL url = new URL("https://api.dynu.com/nic/update?hostname=" + hostname + "&myip=" + ip + "&password=" + password);
-            URLConnection conn = url.openConnection();
-            conn.connect();
-            
             // Combine Client ID and Secret
             String dynuFull = dynuClientId + ":" + dynuSecret;
 
             // Retrieve Dynu Token
             dynuToken = getToken(dynuFull);
 
-            // Get Domain Name + ID
+            // Get Domain Name
             getDomainInfo();
-
-            // Get DNS Records of Domain ID
+            // Get DNS Records
             getDNSRecords();
-            
             // Update DNS Record
             updateDNS(port);
-
+            // Update IP Record
+            updateIP(port, ip);
         } catch (Exception e) {
             this.getLogger().severe(e.getMessage());
         }
@@ -269,6 +264,7 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
             BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             String response = reader.readLine();
             reader.close();
+            this.getLogger().info("Response: " + response);
 
             String[] records = response.split("\"");
             for (int i = 0; i < records.length; i++) {
@@ -277,6 +273,50 @@ public final class NgrokCommunication extends JavaPlugin implements EventListene
                     break;
                 }
             }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private void updateIP(int port, String ip) {
+        try {
+            this.getLogger().info("Updating DNS IPv4...");
+
+            URL url = new URL("https://api.dynu.com/v2/dns/" + domainId);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + dynuToken);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+
+            String data = "{"
+                    + "\"name\":\"" + domain + "\","
+                    + "\"group\":\"default\","
+                    + "\"ipv4Address\":\"" + ip + "\","
+                    + "\"ttl\":120,"
+                    + "\"ipv4\":true,"
+                    + "\"ipv6\":false,"
+                    + "\"ipv4WildcardAlias\":false,"
+                    + "\"ipv6WildcardAlias\":false,"
+                    + "\"allowZoneTransfer\":false,"
+                    + "\"dnssec\":false"
+                    + "}";
+
+            conn.getOutputStream().write(data.getBytes(StandardCharsets.UTF_8));
+
+            int responseCode = conn.getResponseCode();
+            this.getLogger().info("Dynu DNS update response code: " + responseCode);
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            String responseLine;
+            StringBuilder response = new StringBuilder();
+            while ((responseLine = reader.readLine()) != null) {
+                response.append(responseLine);
+            }
+            reader.close();
+            this.getLogger().info("Dynu DNS update response: " + response);
+
         } catch (Exception e) {
             e.printStackTrace();
         }
