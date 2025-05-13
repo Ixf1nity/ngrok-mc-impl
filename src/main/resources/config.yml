@@ -18,6 +18,5 @@ DISCORD_UPDATES:
 DYNU_SETTINGS:
   ENABLED: false
   DOMAIN: ""
-  PASSWORD: "" # The password may be supplied normally or as an MD5/SHA256 hash for security reasons.
   CLIENT_ID: ""
   SECRET: ""
